@@ -4,7 +4,7 @@ import MessageBubble from "./MessageBubble";
 import PulseLoader from "./PulseLoader";
 import { api } from "../lib/api";
 
-export default function ChatPanel({ project, messages, setMessages, onFilesReady }) {
+export default function ChatPanel({ project, messages, setMessages, files, onFilesReady }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef(null);
@@ -23,7 +23,11 @@ export default function ChatPanel({ project, messages, setMessages, onFilesReady
     setBusy(true);
 
     try {
-      const result = await api.sendMessage(project.id, userMsg.content);
+      const result = await api.sendMessage(
+        project.id,
+        userMsg.content,
+        files && files.length ? files : null
+      );
       setMessages((prev) => [...prev, { role: "assistant", content: result.reply }]);
       if (result.files?.length) onFilesReady(result.files);
     } catch (err) {
@@ -57,7 +61,7 @@ export default function ChatPanel({ project, messages, setMessages, onFilesReady
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Describe the app, or answer the question above…"
+          placeholder="Describe the app, or ask for a change…"
           className="flex-1 bg-panel border border-line rounded-lg px-4 py-3 text-ink placeholder:text-smoke/60 focus:border-blood outline-none transition-colors text-sm"
         />
         <button
