@@ -28,8 +28,8 @@ export const api = {
     request("/projects", { method: "POST", body: JSON.stringify({ name, prompt }) }),
   getProject: (id) => request(`/projects/${id}`),
   deleteProject: (id) => request(`/projects/${id}`, { method: "DELETE" }),
-  sendMessage: (project_id, content) =>
-    request("/chat", { method: "POST", body: JSON.stringify({ project_id, content }) }),
+  sendMessage: (project_id, content, current_files = null) =>
+    request("/chat", { method: "POST", body: JSON.stringify({ project_id, content, current_files }) }),
   pushToGithub: (project_id, repo_name, files) =>
     request(`/github/push-files?project_id=${project_id}&repo_name=${repo_name}`, {
       method: "POST",
