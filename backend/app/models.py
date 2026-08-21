@@ -18,9 +18,15 @@ class ProjectOut(BaseModel):
     created_at: datetime
 
 
+class GeneratedFile(BaseModel):
+    path: str
+    content: str
+
+
 class MessageIn(BaseModel):
     project_id: str
     content: str
+    current_files: Optional[list[GeneratedFile]] = None
 
 
 class MessageOut(BaseModel):
@@ -35,11 +41,6 @@ class GithubPushRequest(BaseModel):
     project_id: str
     repo_name: str
     private: bool = True
-
-
-class GeneratedFile(BaseModel):
-    path: str
-    content: str
 
 
 class GenerationResult(BaseModel):
