@@ -111,6 +111,7 @@ export default function App() {
                 project={activeProject}
                 messages={messages}
                 setMessages={setMessages}
+                files={files}
                 onFilesReady={setFiles}
               />
             ) : (
@@ -125,6 +126,7 @@ export default function App() {
                   files={files}
                   onPushGithub={handlePushGithub}
                   onDownloadZip={handleDownloadZip}
+                  onFilesChange={setFiles}
                 />
               )}
             </AnimatePresence>
@@ -139,4 +141,4 @@ export default function App() {
       </AnimatePresence>
     </>
   );
-}
+  }
