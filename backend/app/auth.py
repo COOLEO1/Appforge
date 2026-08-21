@@ -1,7 +1,11 @@
 from fastapi import Header, HTTPException, status
 import jwt
-from jwt import PyJWTError
+from jwt import PyJWTError, PyJWKClient
 from app.config import settings
+
+# Verifies against Supabase's public signing keys (works for both the newer
+# asymmetric ES256/RS256 keys and legacy HS256 setups where applicable).
+_jwks_client = PyJWKClient(f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json")
 
 
 class CurrentUser:
@@ -14,8 +18,8 @@ class CurrentUser:
 def get_current_user(authorization: str = Header(...)) -> CurrentUser:
     """
     Expects: Authorization: Bearer <supabase_access_token>
-    Verifies the token's signature against the Supabase JWT secret so we
-    never trust a user_id sent from the client directly.
+    Verifies the token's signature against Supabase's published signing keys
+    so we never trust a user_id sent from the client directly.
     """
     if not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -26,10 +30,11 @@ def get_current_user(authorization: str = Header(...)) -> CurrentUser:
     token = authorization.removeprefix("Bearer ").strip()
 
     try:
+        signing_key = _jwks_client.get_signing_key_from_jwt(token)
         payload = jwt.decode(
             token,
-            settings.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
+            signing_key.key,
+            algorithms=["ES256", "RS256", "HS256"],
             audience="authenticated",
         )
     except PyJWTError as e:
