@@ -6,6 +6,7 @@ import AuthScreen from "./components/AuthScreen";
 import Sidebar from "./components/Sidebar";
 import ChatPanel from "./components/ChatPanel";
 import FileTree from "./components/FileTree";
+import NewProjectModal from "./components/NewProjectModal";
 
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = loading
@@ -13,6 +14,7 @@ export default function App() {
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [files, setFiles] = useState([]);
+  const [showNewProject, setShowNewProject] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -26,15 +28,17 @@ export default function App() {
 
   const activeProject = projects.find((p) => p.id === activeId);
 
-  const handleNewProject = useCallback(async () => {
-    const name = window.prompt("Name this project:");
-    if (!name) return;
-    const prompt = window.prompt("Describe the app in one line:") || "";
-    const project = await api.createProject(name, prompt);
-    setProjects((prev) => [project, ...prev]);
-    setActiveId(project.id);
-    setMessages(prompt ? [{ role: "user", content: prompt }] : []);
-    setFiles([]);
+  const handleNewProject = useCallback(async (name, prompt) => {
+    try {
+      const project = await api.createProject(name, prompt);
+      setProjects((prev) => [project, ...prev]);
+      setActiveId(project.id);
+      setMessages(prompt ? [{ role: "user", content: prompt }] : []);
+      setFiles([]);
+      setShowNewProject(false);
+    } catch (err) {
+      window.alert(`Couldn't create project: ${err.message}`);
+    }
   }, []);
 
   const handleSelect = useCallback((id) => {
@@ -45,8 +49,7 @@ export default function App() {
   }, []);
 
   async function handlePushGithub() {
-    const repoName = window.prompt("Repo name:", activeProject?.name.replace(/\s+/g, "-").toLowerCase());
-    if (!repoName) return;
+    const repoName = activeProject?.name.replace(/\s+/g, "-").toLowerCase();
     try {
       const res = await api.pushToGithub(activeProject.id, repoName, files);
       window.alert(`Pushed: ${res.repo_url}`);
@@ -100,7 +103,7 @@ export default function App() {
               projects={projects}
               activeId={activeId}
               onSelect={handleSelect}
-              onNew={handleNewProject}
+              onNew={() => setShowNewProject(true)}
             />
 
             {activeProject ? (
@@ -125,6 +128,12 @@ export default function App() {
                 />
               )}
             </AnimatePresence>
+
+            <NewProjectModal
+              open={showNewProject}
+              onClose={() => setShowNewProject(false)}
+              onCreate={handleNewProject}
+            />
           </motion.div>
         )}
       </AnimatePresence>
