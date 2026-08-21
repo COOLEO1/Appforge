@@ -1,11 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function FileTree({ files, onPushGithub, onDownloadZip }) {
+export default function FileTree({ files, onPushGithub, onDownloadZip, onFilesChange }) {
   const [activePath, setActivePath] = useState(files[0]?.path || null);
+  const [draft, setDraft] = useState("");
+  const [dirty, setDirty] = useState(false);
+
   const activeFile = files.find((f) => f.path === activePath);
 
+  useEffect(() => {
+    setDraft(activeFile?.content || "");
+    setDirty(false);
+  }, [activePath, files.length]);
+
   if (!files.length) return null;
+
+  function handleSave() {
+    const updated = files.map((f) =>
+      f.path === activePath ? { ...f, content: draft } : f
+    );
+    onFilesChange(updated);
+    setDirty(false);
+  }
 
   return (
     <motion.aside
@@ -51,16 +67,33 @@ export default function FileTree({ files, onPushGithub, onDownloadZip }) {
 
       <AnimatePresence mode="wait">
         {activeFile && (
-          <motion.pre
+          <motion.div
             key={activeFile.path}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 overflow-auto p-4 text-xs font-mono text-ink whitespace-pre-wrap"
+            className="flex-1 flex flex-col overflow-hidden"
           >
-            {activeFile.content}
-          </motion.pre>
+            <textarea
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                setDirty(true);
+              }}
+              spellCheck={false}
+              className="flex-1 w-full resize-none bg-void/40 p-4 text-xs font-mono text-ink outline-none"
+            />
+            <div className="p-2 border-t border-line">
+              <button
+                onClick={handleSave}
+                disabled={!dirty}
+                className="w-full text-xs bg-blood hover:bg-blood-dim disabled:opacity-30 disabled:cursor-not-allowed text-ink rounded py-1.5 transition-colors"
+              >
+                {dirty ? "Save changes" : "Saved"}
+              </button>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.aside>
