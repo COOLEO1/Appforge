@@ -13,6 +13,7 @@ class Settings:
     MISTRAL_API_KEY: str = os.getenv("MISTRAL_API_KEY", "")
     GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
     EXPO_TOKEN: str = os.getenv("EXPO_TOKEN", "")
+    PEXELS_API_KEY: str = os.getenv("PEXELS_API_KEY", "")
 
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
