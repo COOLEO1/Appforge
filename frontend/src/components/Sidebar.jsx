@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 
-export default function Sidebar({ projects, activeId, onSelect, onNew }) {
+export default function Sidebar({ projects, activeId, onSelect, onNew, credits }) {
   return (
     <aside className="w-64 shrink-0 border-r border-line bg-panel/60 flex flex-col h-full">
       <div className="p-4 border-b border-line">
@@ -35,6 +35,15 @@ export default function Sidebar({ projects, activeId, onSelect, onNew }) {
           <p className="text-smoke text-sm px-3 py-2">No projects yet.</p>
         )}
       </nav>
+
+      {credits !== null && (
+        <div className="p-4 border-t border-line">
+          <div className="flex items-center justify-between bg-void/40 border border-line rounded-lg px-3 py-2">
+            <span className="text-xs text-smoke tracking-wide">CREDITS</span>
+            <span className="text-sm font-mono text-blood font-medium">{credits}</span>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
