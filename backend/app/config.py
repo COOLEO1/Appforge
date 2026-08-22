@@ -14,6 +14,8 @@ class Settings:
     GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
     EXPO_TOKEN: str = os.getenv("EXPO_TOKEN", "")
     PEXELS_API_KEY: str = os.getenv("PEXELS_API_KEY", "")
+    RENDER_API_KEY: str = os.getenv("RENDER_API_KEY", "")
+    RENDER_OWNER_ID: str = os.getenv("RENDER_OWNER_ID", "")
 
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
