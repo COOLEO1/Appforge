@@ -36,4 +36,9 @@ export const api = {
       body: JSON.stringify(files),
     }),
   getCredits: () => request("/credits"),
+  deployProject: (project_id, repo_url, has_backend, has_frontend) =>
+    request("/deploy", {
+      method: "POST",
+      body: JSON.stringify({ project_id, repo_url, has_backend, has_frontend }),
+    }),
 };
