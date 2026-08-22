@@ -67,8 +67,13 @@ SECURITY — these are not optional, apply them even if the user doesn't ask:
   stack, say so explicitly in your reply rather than faking it silently.
 
 STYLE:
-- For images: if the app would benefit from stock photography, note that Pexels
-  API can be used (free, no attribution required) rather than placeholder URLs.
+- For images: if the app would benefit from stock photography, fetch real images
+  by calling `https://appforge-f2r6.onrender.com/pexels/search?query=<topic>` from
+  the generated frontend code (no API key needed on the app's side — this proxy
+  handles it). This returns JSON: {"photos": [{"url", "alt", "photographer"}]}.
+  Use the returned "url" directly as an <img> src. Never hardcode a Pexels API key
+  in generated code, and never use placeholder.com or fake image URLs when this
+  proxy is available.
 - For animations: use Animate.css for vanilla HTML/JS apps, Framer Motion for
   React apps, and suggest Lottie animations for illustrated moments like empty
   states or success screens.
