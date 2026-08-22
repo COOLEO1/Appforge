@@ -16,6 +16,8 @@ export default function App() {
   const [files, setFiles] = useState([]);
   const [showNewProject, setShowNewProject] = useState(false);
   const [credits, setCredits] = useState(null);
+  const [repoUrl, setRepoUrl] = useState(null);
+  const [deploying, setDeploying] = useState(false);
 
   const refreshCredits = useCallback(() => {
     api.getCredits().then((r) => setCredits(r.remaining)).catch(console.error);
@@ -43,6 +45,7 @@ export default function App() {
       setActiveId(project.id);
       setMessages(prompt ? [{ role: "user", content: prompt }] : []);
       setFiles([]);
+      setRepoUrl(null);
       setShowNewProject(false);
     } catch (err) {
       window.alert(`Couldn't create project: ${err.message}`);
@@ -53,6 +56,7 @@ export default function App() {
     setActiveId(id);
     setMessages([]);
     setFiles([]);
+    setRepoUrl(null);
     // In a fuller build, fetch persisted messages/files for this project here.
   }, []);
 
@@ -60,9 +64,30 @@ export default function App() {
     const repoName = activeProject?.name.replace(/\s+/g, "-").toLowerCase();
     try {
       const res = await api.pushToGithub(activeProject.id, repoName, files);
+      setRepoUrl(res.repo_url);
       window.alert(`Pushed: ${res.repo_url}`);
     } catch (err) {
       window.alert(`Push failed: ${err.message}`);
+    }
+  }
+
+  async function handleDeploy() {
+    if (!repoUrl) {
+      window.alert("Push to GitHub first, then deploy.");
+      return;
+    }
+    const hasBackend = files.some((f) => f.path.startsWith("backend/"));
+    const hasFrontend = files.some((f) => f.path.startsWith("frontend/"));
+    setDeploying(true);
+    try {
+      const res = await api.deployProject(activeProject.id, repoUrl, hasBackend, hasFrontend);
+      window.alert(
+        `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: ${res.backend_url}\n` : ""}${res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
+      );
+    } catch (err) {
+      window.alert(`Deploy failed: ${err.message}`);
+    } finally {
+      setDeploying(false);
     }
   }
 
@@ -137,6 +162,8 @@ export default function App() {
                   onPushGithub={handlePushGithub}
                   onDownloadZip={handleDownloadZip}
                   onFilesChange={setFiles}
+                  onDeploy={handleDeploy}
+                  deploying={deploying}
                 />
               )}
             </AnimatePresence>
@@ -151,4 +178,4 @@ export default function App() {
       </AnimatePresence>
     </>
   );
-}
+    }
