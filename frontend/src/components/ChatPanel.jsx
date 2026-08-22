@@ -4,7 +4,7 @@ import MessageBubble from "./MessageBubble";
 import PulseLoader from "./PulseLoader";
 import { api } from "../lib/api";
 
-export default function ChatPanel({ project, messages, setMessages, files, onFilesReady }) {
+export default function ChatPanel({ project, messages, setMessages, files, onFilesReady, onCreditsChange }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef(null);
@@ -37,6 +37,7 @@ export default function ChatPanel({ project, messages, setMessages, files, onFil
       ]);
     } finally {
       setBusy(false);
+      onCreditsChange?.();
     }
   }
 
