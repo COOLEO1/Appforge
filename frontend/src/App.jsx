@@ -71,16 +71,34 @@ export default function App() {
     }
   }
 
+  function detectStack(files) {
+    const hasBackendFiles = files.some((f) => f.path.startsWith("backend/") || f.path === "requirements.txt");
+    const hasReactFrontend = files.some((f) => f.path.includes("package.json") && (f.path.startsWith("frontend/") || !hasBackendFiles));
+    const hasVanillaFrontend = files.some((f) => f.path === "index.html" || f.path === "frontend/index.html");
+
+    let backend_type = "none";
+    if (hasBackendFiles) backend_type = "python";
+
+    let frontend_type = "none";
+    if (hasReactFrontend) frontend_type = "react";
+    else if (hasVanillaFrontend) frontend_type = "static";
+
+    return { backend_type, frontend_type };
+  }
+
   async function handleDeploy() {
     if (!repoUrl) {
       window.alert("Push to GitHub first, then deploy.");
       return;
     }
-    const hasBackend = files.some((f) => f.path.startsWith("backend/"));
-    const hasFrontend = files.some((f) => f.path.startsWith("frontend/"));
+    const { backend_type, frontend_type } = detectStack(files);
+    if (backend_type === "none" && frontend_type === "none") {
+      window.alert("Couldn't detect a deployable stack in these files.");
+      return;
+    }
     setDeploying(true);
     try {
-      const res = await api.deployProject(activeProject.id, repoUrl, hasBackend, hasFrontend);
+      const res = await api.deployProject(activeProject.id, repoUrl, backend_type, frontend_type);
       window.alert(
         `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: ${res.backend_url}\n` : ""}${res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
       );
@@ -178,4 +196,4 @@ export default function App() {
       </AnimatePresence>
     </>
   );
-    }
+}
