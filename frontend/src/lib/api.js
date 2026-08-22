@@ -35,4 +35,5 @@ export const api = {
       method: "POST",
       body: JSON.stringify(files),
     }),
+  getCredits: () => request("/credits"),
 };
