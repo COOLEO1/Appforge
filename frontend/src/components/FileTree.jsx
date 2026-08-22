@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function FileTree({ files, onPushGithub, onDownloadZip, onFilesChange }) {
+export default function FileTree({ files, onPushGithub, onDownloadZip, onFilesChange, onDeploy, deploying }) {
   const [activePath, setActivePath] = useState(files[0]?.path || null);
   const [draft, setDraft] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -31,7 +31,7 @@ export default function FileTree({ files, onPushGithub, onDownloadZip, onFilesCh
       transition={{ type: "spring", stiffness: 220, damping: 28 }}
       className="w-80 shrink-0 border-l border-line bg-panel/60 flex flex-col h-full"
     >
-      <div className="p-4 border-b border-line flex items-center justify-between">
+      <div className="p-4 border-b border-line flex items-center justify-between flex-wrap gap-2">
         <h2 className="font-display text-sm text-ink tracking-tight">FILES</h2>
         <div className="flex gap-2">
           <button
@@ -42,9 +42,16 @@ export default function FileTree({ files, onPushGithub, onDownloadZip, onFilesCh
           </button>
           <button
             onClick={onPushGithub}
-            className="text-xs text-ink bg-blood hover:bg-blood-dim rounded px-2 py-1 transition-colors"
+            className="text-xs text-ink bg-panel border border-blood/40 hover:bg-blood/15 rounded px-2 py-1 transition-colors"
           >
             Push
+          </button>
+          <button
+            onClick={onDeploy}
+            disabled={deploying}
+            className="text-xs text-ink bg-blood hover:bg-blood-dim disabled:opacity-50 disabled:cursor-not-allowed rounded px-2 py-1 transition-colors"
+          >
+            {deploying ? "Deploying…" : "Deploy"}
           </button>
         </div>
       </div>
@@ -98,4 +105,4 @@ export default function FileTree({ files, onPushGithub, onDownloadZip, onFilesCh
       </AnimatePresence>
     </motion.aside>
   );
-}
+    }
