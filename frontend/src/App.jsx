@@ -15,6 +15,11 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [files, setFiles] = useState([]);
   const [showNewProject, setShowNewProject] = useState(false);
+  const [credits, setCredits] = useState(null);
+
+  const refreshCredits = useCallback(() => {
+    api.getCredits().then((r) => setCredits(r.remaining)).catch(console.error);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -23,8 +28,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (session) api.listProjects().then(setProjects).catch(console.error);
-  }, [session]);
+    if (session) {
+      api.listProjects().then(setProjects).catch(console.error);
+      refreshCredits();
+    }
+  }, [session, refreshCredits]);
 
   const activeProject = projects.find((p) => p.id === activeId);
 
@@ -104,6 +112,7 @@ export default function App() {
               activeId={activeId}
               onSelect={handleSelect}
               onNew={() => setShowNewProject(true)}
+              credits={credits}
             />
 
             {activeProject ? (
@@ -113,6 +122,7 @@ export default function App() {
                 setMessages={setMessages}
                 files={files}
                 onFilesReady={setFiles}
+                onCreditsChange={refreshCredits}
               />
             ) : (
               <div className="flex-1 flex items-center justify-center text-smoke text-sm">
@@ -141,4 +151,4 @@ export default function App() {
       </AnimatePresence>
     </>
   );
-  }
+}
