@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import projects, chat, github, export, credits, pexels
+from app.routers import projects, chat, github, export, credits, pexels, deploy
 
 app = FastAPI(title="AppForge API")
 
@@ -20,6 +20,7 @@ app.include_router(github.router)
 app.include_router(export.router)
 app.include_router(credits.router)
 app.include_router(pexels.router)
+app.include_router(deploy.router)
 
 
 @app.get("/")
