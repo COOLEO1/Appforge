@@ -45,3 +45,24 @@ def delete_project(project_id: str, user: CurrentUser = Depends(get_current_user
     db = get_user_client(user.token)
     db.table("projects").delete().eq("id", project_id).execute()
     return {"ok": True}
+
+
+@router.get("/{project_id}/messages")
+def get_project_messages(project_id: str, user: CurrentUser = Depends(get_current_user)):
+    db = get_user_client(user.token)
+    project = db.table("projects").select("id, files").eq("id", project_id).single().execute()
+    if not project.data:
+        raise HTTPException(404, "Project not found")
+
+    messages = (
+        db.table("messages")
+        .select("role, content")
+        .eq("project_id", project_id)
+        .order("created_at")
+        .execute()
+    )
+
+    return {
+        "messages": messages.data,
+        "files": project.data.get("files") or [],
+    }
