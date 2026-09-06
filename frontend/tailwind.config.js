@@ -4,13 +4,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        void: "#0B0A0C",      // page background
-        panel: "#16141A",     // cards, sidebar, chat panel
-        line: "#2A262B",      // hairline borders
-        ink: "#F2EFEA",       // primary text
-        smoke: "#8B8790",     // muted/secondary text
-        blood: "#B3122E",     // single accent
-        "blood-dim": "#7A0C20",
+        void: "#0F1419",       // page background
+        panel: "#1A212B",      // cards, sidebar, chat panel
+        line: "#2D3748",       // hairline borders
+        ink: "#E8EDF2",        // primary text
+        smoke: "#8A97A8",      // muted/secondary text
+        blood: "#3B82F6",      // single accent (kept name "blood" so existing classes still work)
+        "blood-dim": "#2563EB",
       },
       fontFamily: {
         display: ["'Archivo Black'", "sans-serif"],
