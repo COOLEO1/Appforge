@@ -14,7 +14,7 @@ async function request(path, options = {}) {
     ...(await authHeader()),
     ...(options.headers || {}),
   };
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const res = await fetch(`\( {API_BASE} \){path}`, { ...options, headers });
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`${res.status}: ${body}`);
@@ -32,7 +32,7 @@ export const api = {
   sendMessage: (project_id, content, current_files = null) =>
     request("/chat", { method: "POST", body: JSON.stringify({ project_id, content, current_files }) }),
   pushToGithub: (project_id, repo_name, files) =>
-    request(`/github/push-files?project_id=${project_id}&repo_name=${repo_name}`, {
+    request(`/github/push-files?project_id=\( {project_id}&repo_name= \){repo_name}`, {
       method: "POST",
       body: JSON.stringify(files),
     }),
@@ -42,4 +42,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ project_id, repo_url, backend_type, frontend_type }),
     }),
+  deleteGithubRepo: (repo_url) =>
+    request(`/github/repo?repo_url=${encodeURIComponent(repo_url)}`, { method: "DELETE" }),
+  deleteRenderService: (service_url) =>
+    request(`/deploy/service?service_url=${encodeURIComponent(service_url)}`, { method: "DELETE" }),
 };
