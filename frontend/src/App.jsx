@@ -68,6 +68,21 @@ export default function App() {
     }
   }, []);
 
+  const handleDeleteProject = useCallback(async (id) => {
+    try {
+      await api.deleteProject(id);
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+      if (activeId === id) {
+        setActiveId(null);
+        setMessages([]);
+        setFiles([]);
+        setRepoUrl(null);
+      }
+    } catch (err) {
+      window.alert(`Couldn't delete project: ${err.message}`);
+    }
+  }, [activeId]);
+
   async function handlePushGithub() {
     const repoName = activeProject?.name.replace(/\s+/g, "-").toLowerCase();
     try {
@@ -108,7 +123,7 @@ export default function App() {
     try {
       const res = await api.deployProject(activeProject.id, repoUrl, backend_type, frontend_type);
       window.alert(
-        `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: ${res.backend_url}\n` : ""}${res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
+        `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: \( {res.backend_url}\n` : ""} \){res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
       );
     } catch (err) {
       window.alert(`Deploy failed: ${err.message}`);
@@ -161,6 +176,7 @@ export default function App() {
               activeId={activeId}
               onSelect={handleSelect}
               onNew={() => setShowNewProject(true)}
+              onDelete={handleDeleteProject}
               credits={credits}
             />
 
