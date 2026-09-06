@@ -122,3 +122,33 @@ def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_
     db.table("projects").update(update_fields).eq("id", body.project_id).execute()
 
     return urls
+
+
+@router.delete("/service")
+def delete_render_service(service_url: str, user: CurrentUser = Depends(get_current_user)):
+    """
+    Deletes a Render service. We have to look it up by matching its URL
+    since Render's API identifies services by ID, not URL.
+    """
+    headers = _render_headers()
+    list_resp = httpx.get(f"{RENDER_API}/services", headers=headers, params={"limit": 100}, timeout=20)
+    if list_resp.status_code != 200:
+        raise HTTPException(502, "Couldn't list Render services")
+
+    services = list_resp.json()
+    match = None
+    for entry in services:
+        svc = entry.get("service", entry)
+        svc_url = svc.get("serviceDetails", {}).get("url", "")
+        if svc_url and svc_url in service_url or service_url in svc_url:
+            match = svc
+            break
+
+    if not match:
+        return {"deleted": False, "reason": "Service not found (may already be deleted)"}
+
+    del_resp = httpx.delete(f"{RENDER_API}/services/{match['id']}", headers=headers, timeout=20)
+    if del_resp.status_code not in (200, 204):
+        raise HTTPException(502, f"Couldn't delete Render service: {del_resp.text}")
+
+    return {"deleted": True}
