@@ -82,3 +82,27 @@ def push_files(project_id: str, repo_name: str, files: list[dict], user: Current
     ).eq("id", project_id).execute()
 
     return {"repo_url": repo.html_url}
+
+
+@router.delete("/repo")
+def delete_repo(repo_url: str, user: CurrentUser = Depends(get_current_user)):
+    """
+    Deletes a GitHub repo given its URL. repo_url looks like
+    https://github.com/username/repo-name
+    """
+    if not settings.GITHUB_TOKEN:
+        raise HTTPException(500, "GitHub token not configured on server")
+
+    parts = repo_url.rstrip("/").split("/")
+    if len(parts) < 2:
+        raise HTTPException(400, "Invalid repo URL")
+    owner, repo_name = parts[-2], parts[-1]
+
+    gh = Github(settings.GITHUB_TOKEN)
+    try:
+        repo = gh.get_repo(f"{owner}/{repo_name}")
+        repo.delete()
+    except GithubException as e:
+        raise HTTPException(502, f"Couldn't delete repo: {e.data}")
+
+    return {"deleted": True}
