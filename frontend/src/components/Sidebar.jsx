@@ -38,9 +38,11 @@ export default function Sidebar({ projects, activeId, onSelect, onNew, onDelete,
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (window.confirm(`Delete "${p.name}"? This can't be undone.`)) {
-                  onDelete(p.id);
-                }
+                if (!window.confirm(`Delete "${p.name}"? This can't be undone.`)) return;
+                const fullCleanup = window.confirm(
+                  "Also delete the GitHub repo and Render services for this project? Tap Cancel to only remove it from AppForge."
+                );
+                onDelete(p.id, fullCleanup);
               }}
               className="px-2 text-smoke hover:text-blood transition-colors text-xs"
               title="Delete project"
