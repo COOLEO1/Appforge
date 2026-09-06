@@ -108,40 +108,62 @@ def send_message(body: MessageIn, user: CurrentUser = Depends(get_current_user))
 
     _deduct_credit(user.id)
 
-    response = mistral_client.chat.complete(
-        model="mistral-large-latest",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": body.message}
-        ]
+    user_content = body.content
+    if body.current_files:
+        files_json = json.dumps([f.dict() for f in body.current_files], indent=2)
+        user_content = (
+            f"{body.content}\n\n"
+            f"EXISTING FILES (edit these, don't start over):\n{files_json}"
+        )
+
+    db.table("messages").insert(
+        {"project_id": body.project_id, "role": "user", "content": body.content}
+    ).execute()
+
+    history = (
+        db.table("messages")
+        .select("role, content")
+        .eq("project_id", body.project_id)
+        .order("created_at")
+        .execute()
     )
 
-    raw_reply = response.choices[0].message.content
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    past = [{"role": m["role"], "content": m["content"]} for m in history.data]
+    if past:
+        past[-1] = {"role": "user", "content": user_content}
+    messages += past
 
+    response = mistral_client.chat.complete(
+        model="codestral-latest",
+        messages=messages,
+        response_format={"type": "json_object"},
+    )
+
+    raw = response.choices[0].message.content
     try:
-        parsed = json.loads(raw_reply)
+        parsed = json.loads(raw)
     except json.JSONDecodeError:
-        raise HTTPException(500, "AI returned invalid JSON")
+        raise HTTPException(502, "Model returned malformed output")
 
-    files = []
-    for f in parsed.get("files", []):
-        db.table("files").upsert({
-            "project_id": body.project_id,
-            "path": f["path"],
-            "content": f["content"]
-        }).execute()
-        files.append(GeneratedFile(path=f["path"], content=f["content"]))
-
+    reply = parsed.get("reply", "")
     ready = parsed.get("ready", False)
+    files = parsed.get("files", [])
+
+    db.table("messages").insert(
+        {"project_id": body.project_id, "role": "assistant", "content": reply}
+    ).execute()
+
+    print(f"DEBUG: ready={ready}, files_count={len(files)}")
 
     if ready and files:
-        db.table("projects").update({
-            "status": "ready",
-            "files": [f.dict() if hasattr(f, "dict") else f for f in files]
-        }).eq("id", body.project_id).execute()
+        update_result = db.table("projects").update(
+            {"status": "ready", "files": files}
+        ).eq("id", body.project_id).execute()
+        print(f"DEBUG: files update result: {update_result}")
 
     return GenerationResult(
-        reply=parsed.get("reply", ""),
-        ready=ready,
-        files=files
+        project_id=body.project_id,
+        reply=reply,
+        files=[GeneratedFile(**f) for f in files],
     )
