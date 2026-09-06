@@ -113,6 +113,12 @@ def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_
         result = _create_static_frontend(body.repo_url, name)
         urls["frontend_url"] = result.get("service", {}).get("serviceDetails", {}).get("url") or result.get("serviceDetails", {}).get("url")
 
-    db.table("projects").update({"status": "deployed"}).eq("id", body.project_id).execute()
+    update_fields = {"status": "deployed"}
+    if urls.get("backend_url"):
+        update_fields["deployed_backend_url"] = urls["backend_url"]
+    if urls.get("frontend_url"):
+        update_fields["deployed_frontend_url"] = urls["frontend_url"]
+
+    db.table("projects").update(update_fields).eq("id", body.project_id).execute()
 
     return urls
