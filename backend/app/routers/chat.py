@@ -6,6 +6,7 @@ from app.auth import get_current_user, CurrentUser
 from app.database import get_user_client, supabase_admin
 from app.config import settings
 from app.models import MessageIn, GenerationResult, GeneratedFile
+from app.services.search import needs_search, web_search
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -65,6 +66,14 @@ SECURITY — these are not optional, apply them even if the user doesn't ask:
   (`navigator.credentials`) — never a plain text input field standing in for
   biometric data. If real hardware integration isn't feasible in the generated
   stack, say so explicitly in your reply rather than faking it silently.
+- SECRET_KEY / config fallbacks: this rule is critical and must never be skipped.
+  `os.getenv("SECRET_KEY", "anything")` with a second argument is FORBIDDEN. Use
+  `os.getenv("SECRET_KEY")` alone, and if the app framework needs a non-None
+  value at import time, raise a RuntimeError immediately if it's missing rather
+  than substituting any placeholder string.
+- Debug mode: NEVER leave `debug=True` (Flask) or equivalent debug/reload flags
+  enabled in the final generated app. Production-style apps must run without
+  a debugger exposed.
 
 STYLE:
 - For images: if the app would benefit from stock photography, fetch real images
@@ -109,10 +118,20 @@ def send_message(body: MessageIn, user: CurrentUser = Depends(get_current_user))
     _deduct_credit(user.id)
 
     user_content = body.content
+
+    if needs_search(body.content):
+        search_results = web_search(body.content)
+        if search_results:
+            user_content = (
+                f"{user_content}\n\n"
+                f"CURRENT WEB INFO (use this to make sure your answer reflects "
+                f"up-to-date facts, versions, or practices):\n{search_results}"
+            )
+
     if body.current_files:
         files_json = json.dumps([f.dict() for f in body.current_files], indent=2)
         user_content = (
-            f"{body.content}\n\n"
+            f"{user_content}\n\n"
             f"EXISTING FILES (edit these, don't start over):\n{files_json}"
         )
 
