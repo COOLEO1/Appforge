@@ -15,6 +15,8 @@ class ProjectOut(BaseModel):
     prompt: str
     status: str
     github_repo_url: Optional[str] = None
+    deployed_frontend_url: Optional[str] = None
+    deployed_backend_url: Optional[str] = None
     created_at: datetime
 
 
