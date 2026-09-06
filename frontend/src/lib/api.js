@@ -27,6 +27,7 @@ export const api = {
   createProject: (name, prompt) =>
     request("/projects", { method: "POST", body: JSON.stringify({ name, prompt }) }),
   getProject: (id) => request(`/projects/${id}`),
+  getProjectMessages: (id) => request(`/projects/${id}/messages`),
   deleteProject: (id) => request(`/projects/${id}`, { method: "DELETE" }),
   sendMessage: (project_id, content, current_files = null) =>
     request("/chat", { method: "POST", body: JSON.stringify({ project_id, content, current_files }) }),
