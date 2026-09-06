@@ -43,10 +43,32 @@ export default function ChatPanel({ project, messages, setMessages, files, onFil
 
   return (
     <div className="flex-1 flex flex-col h-full min-w-0">
-      <div className="p-4 border-b border-line">
+      <div className="p-4 border-b border-line flex items-center justify-between flex-wrap gap-2">
         <h2 className="font-display text-base text-ink tracking-tight truncate">
           {project.name}
         </h2>
+        <div className="flex gap-2 text-xs">
+          {project.github_repo_url && (
+            <a
+              href={project.github_repo_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-smoke hover:text-ink border border-line rounded px-2 py-1 transition-colors"
+            >
+              Source
+            </a>
+          )}
+          {project.deployed_frontend_url && (
+            <a
+              href={project.deployed_frontend_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-ink bg-blood hover:bg-blood-dim rounded px-2 py-1 transition-colors"
+            >
+              Live
+            </a>
+          )}
+        </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
