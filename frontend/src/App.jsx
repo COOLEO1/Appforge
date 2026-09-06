@@ -123,7 +123,7 @@ export default function App() {
     try {
       const res = await api.deployProject(activeProject.id, repoUrl, backend_type, frontend_type);
       window.alert(
-        `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: \( {res.backend_url}\n` : ""} \){res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
+        `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: ${res.backend_url}\n` : ""}${res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
       );
     } catch (err) {
       window.alert(`Deploy failed: ${err.message}`);
