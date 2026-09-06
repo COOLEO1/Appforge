@@ -52,12 +52,20 @@ export default function App() {
     }
   }, []);
 
-  const handleSelect = useCallback((id) => {
+  const handleSelect = useCallback(async (id) => {
     setActiveId(id);
     setMessages([]);
     setFiles([]);
     setRepoUrl(null);
-    // In a fuller build, fetch persisted messages/files for this project here.
+    try {
+      const data = await api.getProjectMessages(id);
+      setMessages(
+        (data.messages || []).map((m) => ({ role: m.role, content: m.content }))
+      );
+      setFiles(data.files || []);
+    } catch (err) {
+      console.error("Couldn't load project history:", err);
+    }
   }, []);
 
   async function handlePushGithub() {
@@ -110,8 +118,6 @@ export default function App() {
   }
 
   function handleDownloadZip() {
-    // Simplest path: POST to /export/zip and trigger a browser download.
-    // Left as a direct fetch here since it returns a binary stream, not JSON.
     (async () => {
       const { data } = await supabase.auth.getSession();
       const token = data?.session?.access_token;
@@ -131,7 +137,7 @@ export default function App() {
   }
 
   if (session === undefined) {
-    return <div className="min-h-screen bg-void" />; // avoid flash before we know auth state
+    return <div className="min-h-screen bg-void" />;
   }
 
   return (
