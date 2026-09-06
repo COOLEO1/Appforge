@@ -8,3 +8,4 @@ PyGithub==2.4.0
 mistralai==1.2.3
 pyjwt==2.9.0
 cryptography==43.0.1
+beautifulsoup4==4.12.3
