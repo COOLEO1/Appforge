@@ -68,7 +68,33 @@ export default function App() {
     }
   }, []);
 
-  const handleDeleteProject = useCallback(async (id) => {
+  const handleDeleteProject = useCallback(async (id, fullCleanup) => {
+    const project = projects.find((p) => p.id === id);
+
+    if (fullCleanup && project) {
+      if (project.github_repo_url) {
+        try {
+          await api.deleteGithubRepo(project.github_repo_url);
+        } catch (err) {
+          console.error("GitHub delete failed:", err);
+        }
+      }
+      if (project.deployed_backend_url) {
+        try {
+          await api.deleteRenderService(project.deployed_backend_url);
+        } catch (err) {
+          console.error("Render backend delete failed:", err);
+        }
+      }
+      if (project.deployed_frontend_url) {
+        try {
+          await api.deleteRenderService(project.deployed_frontend_url);
+        } catch (err) {
+          console.error("Render frontend delete failed:", err);
+        }
+      }
+    }
+
     try {
       await api.deleteProject(id);
       setProjects((prev) => prev.filter((p) => p.id !== id));
@@ -81,7 +107,7 @@ export default function App() {
     } catch (err) {
       window.alert(`Couldn't delete project: ${err.message}`);
     }
-  }, [activeId]);
+  }, [activeId, projects]);
 
   async function handlePushGithub() {
     const repoName = activeProject?.name.replace(/\s+/g, "-").toLowerCase();
@@ -133,7 +159,7 @@ export default function App() {
         )
       );
       window.alert(
-        `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: ${res.backend_url}\n` : ""}${res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
+        `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: \( {res.backend_url}\n` : ""} \){res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
       );
     } catch (err) {
       window.alert(`Deploy failed: ${err.message}`);
