@@ -1,5 +1,6 @@
 import httpx
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 from app.config import settings
 
 router = APIRouter(prefix="/pexels", tags=["pexels"])
@@ -8,9 +9,11 @@ router = APIRouter(prefix="/pexels", tags=["pexels"])
 @router.get("/search")
 def search_photos(query: str = Query(...), per_page: int = Query(6, le=15)):
     """
-    Public proxy so generated apps can pull real stock photos without ever
-    seeing the actual Pexels API key. No auth required — this only reads
-    free stock imagery, nothing sensitive.
+    Public proxy so any app AppForge generates and deploys can pull real
+    stock photos without ever seeing the actual Pexels API key. Open to all
+    origins on purpose — this only serves free stock imagery, nothing
+    sensitive, and generated apps live on unpredictable Render subdomains
+    we can't know in advance.
     """
     if not settings.PEXELS_API_KEY:
         raise HTTPException(500, "Pexels API key not configured on server")
@@ -33,4 +36,8 @@ def search_photos(query: str = Query(...), per_page: int = Query(6, le=15)):
         }
         for p in data.get("photos", [])
     ]
-    return {"photos": photos}
+
+    return JSONResponse(
+        content={"photos": photos},
+        headers={"Access-Control-Allow-Origin": "*"},
+)
