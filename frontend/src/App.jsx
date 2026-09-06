@@ -88,6 +88,9 @@ export default function App() {
     try {
       const res = await api.pushToGithub(activeProject.id, repoName, files);
       setRepoUrl(res.repo_url);
+      setProjects((prev) =>
+        prev.map((p) => (p.id === activeProject.id ? { ...p, github_repo_url: res.repo_url } : p))
+      );
       window.alert(`Pushed: ${res.repo_url}`);
     } catch (err) {
       window.alert(`Push failed: ${err.message}`);
@@ -122,6 +125,13 @@ export default function App() {
     setDeploying(true);
     try {
       const res = await api.deployProject(activeProject.id, repoUrl, backend_type, frontend_type);
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === activeProject.id
+            ? { ...p, deployed_backend_url: res.backend_url, deployed_frontend_url: res.frontend_url }
+            : p
+        )
+      );
       window.alert(
         `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: ${res.backend_url}\n` : ""}${res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
       );
