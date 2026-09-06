@@ -159,7 +159,7 @@ export default function App() {
         )
       );
       window.alert(
-        `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: \( {res.backend_url}\n` : ""} \){res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
+        `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: ${res.backend_url}\n` : ""}${res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
       );
     } catch (err) {
       window.alert(`Deploy failed: ${err.message}`);
