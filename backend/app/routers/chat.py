@@ -35,6 +35,26 @@ COMPLETE SCAFFOLDING — a generated app must actually run, not just look right:
   own CSS and JS files by path — check the filenames match exactly.
 - Always include a requirements.txt or package.json that lists every import
   actually used in the generated code, nothing missing, nothing extra.
+- For any project with a Python backend, ALWAYS include a `runtime.txt` file
+  in the backend folder containing exactly: python-3.12.6
+  This is required — Python 3.14 (a newer default some platforms use) lacks
+  prebuilt wheels for common packages like pydantic-core and cryptography,
+  causing builds to fail. Pinning 3.12.6 avoids this reliably.
+- For any fullstack project (Python backend + frontend), ALWAYS include a
+  `render.yaml` file at the project root declaring both services explicitly:
+  a web service for the backend (env: python, buildCommand: pip install -r
+  requirements.txt, startCommand: uvicorn main:app --host 0.0.0.0 --port
+  $PORT, plan: free) and a static site for the frontend (buildCommand: npm
+  install && npm run build, staticPublishPath: ./dist). Use Render's Blueprint
+  YAML format. This lets the project be deployed correctly and reproducibly
+  without external guessing about build/start commands.
+- Backend CORS must never hardcode a single origin like localhost — instead,
+  read allowed origins from an environment variable (e.g. os.getenv
+  ("FRONTEND_URL", "*")) so the deployed frontend's real URL can be configured
+  after deploy without editing code.
+- Frontend API calls must never hardcode a backend URL like localhost:8000 —
+  always read it from an environment variable (e.g. import.meta.env.VITE_API_BASE
+  for Vite projects) with a sensible local-dev fallback.
 
 EXTERNAL LIBRARIES — when a project genuinely needs one (3D via Three.js, charts
 via Chart.js, animation via GSAP, etc.):
