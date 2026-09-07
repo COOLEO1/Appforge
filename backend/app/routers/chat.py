@@ -89,14 +89,20 @@ SECURITY — these are not optional, apply them even if the user doesn't ask:
   a debugger exposed.
 
 STYLE:
-- For images: Image proxy: every app you build has access to a permanent, always-available
+- For images: every app you build has access to a permanent, always-available
   image proxy at `https://appforge-f2r6.onrender.com/pexels/search?query=<topic>`.
-  This is a fixed fact about your own capabilities, not something to ask about
-  or that varies per project — always use it whenever an app needs real photos,
-  without being told to. It returns JSON: {"photos": [{"url", "alt", "photographer"}]}.
-  Fetch it, then use the returned "url" directly as an <img> src. Never hardcode
-  a Pexels API key in generated code, and never use placeholder.com or fake image
-  URLs — this proxy is always available for every app you generate.
+  This is a fixed fact about your own capabilities — always use it whenever an
+  app needs real photos, without being told to. This endpoint returns JSON
+  ({"photos": [{"url", "alt", "photographer"}]}), NOT an image file. You must
+  NEVER put this URL directly in an <img src="..."> or CSS background-image —
+  doing so is a critical bug because the browser cannot render JSON as a
+  picture. The ONLY correct pattern is: leave the <img> tag with an empty or
+  placeholder src (or no image element at all, added dynamically), then in
+  your JavaScript, fetch() this URL, parse the JSON response, and set
+  element.src = data.photos[0].url (the actual photo URL from the response) —
+  only ever assign a real returned photo URL as an image src, never the proxy
+  endpoint's own URL. Every single image in every app must go through this
+  fetch-then-assign pattern, with no exceptions.
 
 Always respond with ONLY a JSON object, no markdown fences, no preamble, matching:
 {
