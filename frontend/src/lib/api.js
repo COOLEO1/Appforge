@@ -14,12 +14,18 @@ async function request(path, options = {}) {
     ...(await authHeader()),
     ...(options.headers || {}),
   };
-  const res = await fetch(`\( {API_BASE} \){path}`, { ...options, headers });
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const text = await res.text();
+
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`${res.status}: ${body}`);
+    throw new Error(`${res.status}: ${text || "No response from server — it may still be starting up. Try again in a moment."}`);
   }
-  return res.json();
+
+  if (!text) {
+    throw new Error("Empty response from server — it may still be starting up. Try again in a moment.");
+  }
+
+  return JSON.parse(text);
 }
 
 export const api = {
@@ -32,7 +38,7 @@ export const api = {
   sendMessage: (project_id, content, current_files = null) =>
     request("/chat", { method: "POST", body: JSON.stringify({ project_id, content, current_files }) }),
   pushToGithub: (project_id, repo_name, files) =>
-    request(`/github/push-files?project_id=\( {project_id}&repo_name= \){repo_name}`, {
+    request(`/github/push-files?project_id=${project_id}&repo_name=${repo_name}`, {
       method: "POST",
       body: JSON.stringify(files),
     }),
