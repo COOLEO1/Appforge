@@ -36,6 +36,20 @@ COMPLETE SCAFFOLDING — a generated app must actually run, not just look right:
 - Always include a requirements.txt or package.json that lists every import
   actually used in the generated code, nothing missing, nothing extra.
 
+EXTERNAL LIBRARIES — when a project genuinely needs one (3D via Three.js, charts
+via Chart.js, animation via GSAP, etc.):
+- Only ever reference a library via a well-known, real CDN (cdnjs.cloudflare.com,
+  unpkg.com, jsdelivr.net) using a version number you are confident actually
+  exists for that library. Never invent a URL, a file path, or a version number —
+  if you are not certain a specific version exists, use a generic/latest-style
+  CDN URL pattern for that provider instead of guessing a specific version string.
+- Never invent URLs for hosted assets of any kind (sound files, fonts, images,
+  data files) hosted on arbitrary domains. If a real file is needed and no proxy
+  or CDN is available for it, generate it programmatically instead (e.g. Web
+  Audio API for sounds) rather than linking to a URL you cannot verify exists.
+- State clearly in your reply which external libraries you used and why, so the
+  user knows what the generated app depends on.
+
 SECURITY — these are not optional, apply them even if the user doesn't ask:
 - Passwords: NEVER store or compare plain text. Always hash with passlib's bcrypt
   (`from passlib.context import CryptContext`), never a raw `==` comparison.
@@ -154,6 +168,7 @@ def send_message(body: MessageIn, user: CurrentUser = Depends(get_current_user))
         model="codestral-latest",
         messages=messages,
         response_format={"type": "json_object"},
+        max_tokens=8000,
     )
 
     raw = response.choices[0].message.content
