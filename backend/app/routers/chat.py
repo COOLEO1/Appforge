@@ -174,7 +174,7 @@ def send_message(body: MessageIn, user: CurrentUser = Depends(get_current_user))
         model="codestral-latest",
         messages=messages,
         response_format={"type": "json_object"},
-        max_tokens=8000,
+        max_tokens=20000,
     )
 
     raw = response.choices[0].message.content
