@@ -46,12 +46,15 @@ def _set_root_dir_and_redeploy(service_id: str, root_dir: str):
 
     deploy_resp = httpx.post(
         f"{RENDER_API}/services/{service_id}/deploys",
-        json={},
+        json={"clearCache": "do_not_clear"},
         headers=headers,
         timeout=20,
     )
     if deploy_resp.status_code not in (200, 201):
-        raise HTTPException(502, f"Couldn't trigger redeploy: {deploy_resp.text}")
+        raise HTTPException(
+            502,
+            f"Couldn't trigger redeploy (status {deploy_resp.status_code}): {deploy_resp.text or 'empty response'}"
+        )
 
 
 def _create_python_backend(repo_url: str, name: str) -> dict:
@@ -150,23 +153,33 @@ def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_
     urls = {}
     backend_service_id = None
     frontend_service_id = None
+    errors = {}
 
     if body.backend_type == "python":
-        result = _create_python_backend(body.repo_url, name)
-        service = result.get("service", result)
-        backend_service_id = service.get("id")
-        urls["backend_url"] = service.get("serviceDetails", {}).get("url")
+        try:
+            result = _create_python_backend(body.repo_url, name)
+            service = result.get("service", result)
+            backend_service_id = service.get("id")
+            urls["backend_url"] = service.get("serviceDetails", {}).get("url")
+        except HTTPException as e:
+            errors["backend"] = e.detail
 
     if body.frontend_type == "react":
-        result = _create_react_frontend(body.repo_url, name)
-        service = result.get("service", result)
-        frontend_service_id = service.get("id")
-        urls["frontend_url"] = service.get("serviceDetails", {}).get("url")
+        try:
+            result = _create_react_frontend(body.repo_url, name)
+            service = result.get("service", result)
+            frontend_service_id = service.get("id")
+            urls["frontend_url"] = service.get("serviceDetails", {}).get("url")
+        except HTTPException as e:
+            errors["frontend"] = e.detail
     elif body.frontend_type == "static":
-        result = _create_static_frontend(body.repo_url, name)
-        service = result.get("service", result)
-        frontend_service_id = service.get("id")
-        urls["frontend_url"] = service.get("serviceDetails", {}).get("url")
+        try:
+            result = _create_static_frontend(body.repo_url, name)
+            service = result.get("service", result)
+            frontend_service_id = service.get("id")
+            urls["frontend_url"] = service.get("serviceDetails", {}).get("url")
+        except HTTPException as e:
+            errors["frontend"] = e.detail
 
     if backend_service_id and urls.get("frontend_url"):
         _update_service_env_var(backend_service_id, "FRONTEND_URL", urls["frontend_url"])
@@ -180,6 +193,9 @@ def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_
         update_fields["deployed_frontend_url"] = urls["frontend_url"]
 
     db.table("projects").update(update_fields).eq("id", body.project_id).execute()
+
+    if errors:
+        urls["errors"] = errors
 
     return urls
 
