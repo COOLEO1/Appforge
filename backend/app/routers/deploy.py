@@ -27,6 +27,33 @@ def _render_headers():
     }
 
 
+def _set_root_dir_and_redeploy(service_id: str, root_dir: str):
+    """
+    rootDir cannot be set at creation time via Create Service — Render's API
+    only accepts it on Update Service (PATCH), and even then it does not
+    trigger a new deploy automatically. So: patch rootDir, then explicitly
+    trigger a fresh deploy so the corrected root directory actually applies.
+    """
+    headers = _render_headers()
+    patch_resp = httpx.patch(
+        f"{RENDER_API}/services/{service_id}",
+        json={"rootDir": root_dir},
+        headers=headers,
+        timeout=20,
+    )
+    if patch_resp.status_code not in (200, 201):
+        raise HTTPException(502, f"Couldn't set rootDir: {patch_resp.text}")
+
+    deploy_resp = httpx.post(
+        f"{RENDER_API}/services/{service_id}/deploys",
+        json={},
+        headers=headers,
+        timeout=20,
+    )
+    if deploy_resp.status_code not in (200, 201):
+        raise HTTPException(502, f"Couldn't trigger redeploy: {deploy_resp.text}")
+
+
 def _create_python_backend(repo_url: str, name: str) -> dict:
     payload = {
         "type": "web_service",
@@ -43,13 +70,15 @@ def _create_python_backend(repo_url: str, name: str) -> dict:
                 "buildCommand": "pip install -r requirements.txt",
                 "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT",
             },
-            "rootDir": "backend",
         },
     }
     r = httpx.post(f"{RENDER_API}/services", json=payload, headers=_render_headers(), timeout=30)
     if r.status_code not in (200, 201):
         raise HTTPException(502, f"Render backend deploy failed: {r.text}")
-    return r.json()
+    result = r.json()
+    service = result.get("service", result)
+    _set_root_dir_and_redeploy(service["id"], "backend")
+    return result
 
 
 def _create_react_frontend(repo_url: str, name: str) -> dict:
@@ -63,17 +92,20 @@ def _create_react_frontend(repo_url: str, name: str) -> dict:
         "serviceDetails": {
             "buildCommand": "npm install && npm run build",
             "publishPath": "dist",
-            "rootDir": "frontend",
         },
     }
     r = httpx.post(f"{RENDER_API}/services", json=payload, headers=_render_headers(), timeout=30)
     if r.status_code not in (200, 201):
         raise HTTPException(502, f"Render frontend deploy failed: {r.text}")
-    return r.json()
+    result = r.json()
+    service = result.get("service", result)
+    _set_root_dir_and_redeploy(service["id"], "frontend")
+    return result
 
 
 def _create_static_frontend(repo_url: str, name: str) -> dict:
-    """For vanilla HTML/JS/CSS apps with no build step at all."""
+    """For vanilla HTML/JS/CSS apps with no build step at all. No rootDir
+    needed since these projects have their files at the repo root."""
     payload = {
         "type": "static_site",
         "name": f"{name}-frontend",
@@ -93,11 +125,6 @@ def _create_static_frontend(repo_url: str, name: str) -> dict:
 
 
 def _update_service_env_var(service_id: str, key: str, value: str):
-    """
-    Adds or updates a single environment variable on an existing Render
-    service. Render's API requires PUTting the full env var list, so we
-    fetch what's there first and merge in our new value.
-    """
     headers = _render_headers()
     existing = httpx.get(f"{RENDER_API}/services/{service_id}/env-vars", headers=headers, timeout=20)
     current_vars = existing.json() if existing.status_code == 200 else []
@@ -138,8 +165,6 @@ def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_
         frontend_service_id = service.get("id")
         urls["frontend_url"] = service.get("serviceDetails", {}).get("url")
 
-    # Now that both real URLs (with Render's random suffixes) are known,
-    # wire each service to point at the other's actual deployed address.
     if backend_service_id and urls.get("frontend_url"):
         _update_service_env_var(backend_service_id, "FRONTEND_URL", urls["frontend_url"])
     if frontend_service_id and urls.get("backend_url"):
@@ -158,10 +183,6 @@ def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_
 
 @router.delete("/service")
 def delete_render_service(service_url: str, user: CurrentUser = Depends(get_current_user)):
-    """
-    Deletes a Render service. We have to look it up by matching its URL
-    since Render's API identifies services by ID, not URL.
-    """
     headers = _render_headers()
     list_resp = httpx.get(f"{RENDER_API}/services", headers=headers, params={"limit": 100}, timeout=20)
     if list_resp.status_code != 200:
