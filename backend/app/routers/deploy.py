@@ -62,6 +62,9 @@ def _create_python_backend(repo_url: str, name: str) -> dict:
         "repo": repo_url,
         "branch": "main",
         "autoDeploy": "yes",
+        "envVars": [
+            {"key": "PYTHON_VERSION", "value": "3.12.6"},
+        ],
         "serviceDetails": {
             "env": "python",
             "region": "oregon",
