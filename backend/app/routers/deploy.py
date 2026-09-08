@@ -92,6 +92,23 @@ def _create_static_frontend(repo_url: str, name: str) -> dict:
     return r.json()
 
 
+def _update_service_env_var(service_id: str, key: str, value: str):
+    """
+    Adds or updates a single environment variable on an existing Render
+    service. Render's API requires PUTting the full env var list, so we
+    fetch what's there first and merge in our new value.
+    """
+    headers = _render_headers()
+    existing = httpx.get(f"{RENDER_API}/services/{service_id}/env-vars", headers=headers, timeout=20)
+    current_vars = existing.json() if existing.status_code == 200 else []
+
+    merged = {v["envVar"]["key"]: v["envVar"]["value"] for v in current_vars if "envVar" in v}
+    merged[key] = value
+
+    payload = [{"key": k, "value": v} for k, v in merged.items()]
+    httpx.put(f"{RENDER_API}/services/{service_id}/env-vars", json=payload, headers=headers, timeout=20)
+
+
 @router.post("")
 def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_user)):
     db = get_user_client(user.token)
@@ -101,17 +118,32 @@ def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_
 
     name = project.data["name"].lower().replace(" ", "-")[:20]
     urls = {}
+    backend_service_id = None
+    frontend_service_id = None
 
     if body.backend_type == "python":
         result = _create_python_backend(body.repo_url, name)
-        urls["backend_url"] = result.get("service", {}).get("serviceDetails", {}).get("url") or result.get("serviceDetails", {}).get("url")
+        service = result.get("service", result)
+        backend_service_id = service.get("id")
+        urls["backend_url"] = service.get("serviceDetails", {}).get("url")
 
     if body.frontend_type == "react":
         result = _create_react_frontend(body.repo_url, name)
-        urls["frontend_url"] = result.get("service", {}).get("serviceDetails", {}).get("url") or result.get("serviceDetails", {}).get("url")
+        service = result.get("service", result)
+        frontend_service_id = service.get("id")
+        urls["frontend_url"] = service.get("serviceDetails", {}).get("url")
     elif body.frontend_type == "static":
         result = _create_static_frontend(body.repo_url, name)
-        urls["frontend_url"] = result.get("service", {}).get("serviceDetails", {}).get("url") or result.get("serviceDetails", {}).get("url")
+        service = result.get("service", result)
+        frontend_service_id = service.get("id")
+        urls["frontend_url"] = service.get("serviceDetails", {}).get("url")
+
+    # Now that both real URLs (with Render's random suffixes) are known,
+    # wire each service to point at the other's actual deployed address.
+    if backend_service_id and urls.get("frontend_url"):
+        _update_service_env_var(backend_service_id, "FRONTEND_URL", urls["frontend_url"])
+    if frontend_service_id and urls.get("backend_url"):
+        _update_service_env_var(frontend_service_id, "VITE_API_BASE", urls["backend_url"])
 
     update_fields = {"status": "deployed"}
     if urls.get("backend_url"):
