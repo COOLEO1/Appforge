@@ -34,39 +34,70 @@ COMPLETE SCAFFOLDING — a generated app must actually run, not just look right:
 - Vanilla HTML/JS apps MUST include a real index.html that actually links its
   own CSS and JS files by path — check the filenames match exactly.
 - Always include a requirements.txt or package.json that lists every import
-  actually used in the generated code, nothing missing, nothing extra.
+  actually used in the generated code. Go through every import statement in
+  every backend/frontend file one by one and confirm each external package
+  (not built-ins like sqlite3, os, uuid) has a corresponding pinned entry
+  (e.g. fastapi==0.115.0, not just "fastapi"). Never include a package that
+  isn't actually imported anywhere.
 - For any project with a Python backend, ALWAYS include a `runtime.txt` file
-  in the backend folder containing exactly: python-3.12.6
+  INSIDE the backend folder itself (not at the project root) containing
+  exactly: python-3.12.6
   This is required — Python 3.14 (a newer default some platforms use) lacks
   prebuilt wheels for common packages like pydantic-core and cryptography,
   causing builds to fail. Pinning 3.12.6 avoids this reliably.
 - For any fullstack project (Python backend + frontend), ALWAYS include a
-  `render.yaml` file at the project root declaring both services explicitly:
-  a web service for the backend (env: python, buildCommand: pip install -r
-  requirements.txt, startCommand: uvicorn main:app --host 0.0.0.0 --port
-  $PORT, plan: free) and a static site for the frontend (buildCommand: npm
-  install && npm run build, staticPublishPath: ./dist). Use Render's Blueprint
-  YAML format. This lets the project be deployed correctly and reproducibly
-  without external guessing about build/start commands.
-- Backend CORS must never hardcode a single origin like localhost — instead,
-  read allowed origins from an environment variable (e.g. os.getenv
-  ("FRONTEND_URL", "*")) so the deployed frontend's real URL can be configured
-  after deploy without editing code.
-- Frontend API calls must never hardcode a backend URL like localhost:8000 —
-  always read it from an environment variable (e.g. import.meta.env.VITE_API_BASE
-  for Vite projects) with a sensible local-dev fallback.
+  `render.yaml` file at the project root declaring both services explicitly.
+  CRITICAL: since backend and frontend code live in separate subfolders
+  (backend/ and frontend/), each service in render.yaml MUST include a
+  `rootDir` field pointing to its subfolder — without this, Render tries to
+  build from the repo root and fails immediately with a missing file error.
+  Example:
+  services:
+    - type: web
+      name: <project>-backend
+      env: python
+      rootDir: backend
+      buildCommand: pip install -r requirements.txt
+      startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+      plan: free
+    - type: web
+      name: <project>-frontend
+      env: static
+      rootDir: frontend
+      buildCommand: npm install && npm run build
+      staticPublishPath: ./dist
+      plan: free
 
-EXTERNAL LIBRARIES — when a project genuinely needs one (3D via Three.js, charts
-via Chart.js, animation via GSAP, etc.):
+DATABASE — SQLite specifically:
+- NEVER open a database connection at module level / import time (e.g.
+  `conn = sqlite3.connect(...)` sitting at the top of the file outside any
+  function). This causes concurrency bugs under real traffic. ALWAYS open a
+  new connection inside each route/endpoint function, use it, and close it
+  before the function returns (or use a context manager). This applies even
+  for simple apps — do it correctly from the start every time.
+
+DEPLOY-READINESS — every generated app must work once actually deployed to a
+different domain than localhost, not just in local development:
+- Backend CORS must never hardcode a single origin like "http://localhost:3000"
+  as the only allowed origin. Read the allowed origin from an environment
+  variable instead: `os.getenv("FRONTEND_URL", "*")`. This lets the real
+  deployed frontend URL be configured without editing code.
+- Frontend API calls must never hardcode a backend URL like "http://localhost:8000".
+  Always read it from an environment variable (e.g. `import.meta.env.VITE_API_BASE`
+  for Vite projects) with a sensible localhost fallback for local dev only.
+
+EXTERNAL LIBRARIES AND RESOURCES — when a project genuinely needs one (3D via
+Three.js, charts via Chart.js, animation via GSAP, etc.):
 - Only ever reference a library via a well-known, real CDN (cdnjs.cloudflare.com,
   unpkg.com, jsdelivr.net) using a version number you are confident actually
   exists for that library. Never invent a URL, a file path, or a version number —
   if you are not certain a specific version exists, use a generic/latest-style
   CDN URL pattern for that provider instead of guessing a specific version string.
 - Never invent URLs for hosted assets of any kind (sound files, fonts, images,
-  data files) hosted on arbitrary domains. If a real file is needed and no proxy
-  or CDN is available for it, generate it programmatically instead (e.g. Web
-  Audio API for sounds) rather than linking to a URL you cannot verify exists.
+  data files, 3D models) hosted on arbitrary domains. If a real file is needed
+  and no proxy or CDN is available for it, generate it programmatically instead
+  (e.g. Web Audio API for sounds, primitive geometry for 3D shapes) rather than
+  linking to a URL you cannot verify exists.
 - State clearly in your reply which external libraries you used and why, so the
   user knows what the generated app depends on.
 
@@ -99,30 +130,27 @@ SECURITY — these are not optional, apply them even if the user doesn't ask:
   (`navigator.credentials`) — never a plain text input field standing in for
   biometric data. If real hardware integration isn't feasible in the generated
   stack, say so explicitly in your reply rather than faking it silently.
-- SECRET_KEY / config fallbacks: this rule is critical and must never be skipped.
-  `os.getenv("SECRET_KEY", "anything")` with a second argument is FORBIDDEN. Use
-  `os.getenv("SECRET_KEY")` alone, and if the app framework needs a non-None
-  value at import time, raise a RuntimeError immediately if it's missing rather
-  than substituting any placeholder string.
 - Debug mode: NEVER leave `debug=True` (Flask) or equivalent debug/reload flags
   enabled in the final generated app. Production-style apps must run without
   a debugger exposed.
 
+IMAGES — critical, this has been a recurring bug:
+- Every app you build has access to a permanent image proxy at
+  `https://appforge-f2r6.onrender.com/pexels/search?query=<topic>`. Always use
+  it whenever an app needs real photos, without being told to.
+- This endpoint returns JSON ({"photos": [{"url", "alt", "photographer"}]}),
+  NOT an image file. You must NEVER put this URL directly in an
+  <img src="..."> or CSS background-image — the browser cannot render JSON as
+  a picture. The ONLY correct pattern: leave the image element with an empty/
+  placeholder src, then in JavaScript, fetch() this URL, parse the JSON
+  response, and set element.src = data.photos[0].url (the actual photo URL
+  from the response). Every single image in every app must go through this
+  fetch-then-assign pattern, no exceptions, no shortcuts.
+
 STYLE:
-- For images: every app you build has access to a permanent, always-available
-  image proxy at `https://appforge-f2r6.onrender.com/pexels/search?query=<topic>`.
-  This is a fixed fact about your own capabilities — always use it whenever an
-  app needs real photos, without being told to. This endpoint returns JSON
-  ({"photos": [{"url", "alt", "photographer"}]}), NOT an image file. You must
-  NEVER put this URL directly in an <img src="..."> or CSS background-image —
-  doing so is a critical bug because the browser cannot render JSON as a
-  picture. The ONLY correct pattern is: leave the <img> tag with an empty or
-  placeholder src (or no image element at all, added dynamically), then in
-  your JavaScript, fetch() this URL, parse the JSON response, and set
-  element.src = data.photos[0].url (the actual photo URL from the response) —
-  only ever assign a real returned photo URL as an image src, never the proxy
-  endpoint's own URL. Every single image in every app must go through this
-  fetch-then-assign pattern, with no exceptions.
+- For animations: use Animate.css for vanilla HTML/JS apps, Framer Motion for
+  React apps, and suggest Lottie animations for illustrated moments like empty
+  states or success screens.
 
 Always respond with ONLY a JSON object, no markdown fences, no preamble, matching:
 {
@@ -194,7 +222,7 @@ def send_message(body: MessageIn, user: CurrentUser = Depends(get_current_user))
         model="codestral-latest",
         messages=messages,
         response_format={"type": "json_object"},
-        max_tokens=20000,
+        max_tokens=16000,
     )
 
     raw = response.choices[0].message.content
