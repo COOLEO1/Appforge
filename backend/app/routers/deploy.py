@@ -50,7 +50,7 @@ def _set_root_dir_and_redeploy(service_id: str, root_dir: str):
         headers=headers,
         timeout=20,
     )
-    if deploy_resp.status_code not in (200, 201):
+    if deploy_resp.status_code not in (200, 201, 202):
         raise HTTPException(
             502,
             f"Couldn't trigger redeploy (status {deploy_resp.status_code}): {deploy_resp.text or 'empty response'}"
@@ -87,7 +87,7 @@ def _create_python_backend(repo_url: str, name: str) -> dict:
     return result
 
 
-def _create_react_frontend(repo_url: str, name: str) -> dict:
+def _create_react_frontend(repo_url: str, name: str, backend_url: str = "") -> dict:
     payload = {
         "type": "static_site",
         "name": f"{name}-frontend",
@@ -95,6 +95,9 @@ def _create_react_frontend(repo_url: str, name: str) -> dict:
         "repo": repo_url,
         "branch": "main",
         "autoDeploy": "yes",
+        "envVars": [
+            {"key": "VITE_API_BASE", "value": backend_url},
+        ],
         "serviceDetails": {
             "buildCommand": "npm install && npm run build",
             "publishPath": "dist",
@@ -166,7 +169,7 @@ def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_
 
     if body.frontend_type == "react":
         try:
-            result = _create_react_frontend(body.repo_url, name)
+            result = _create_react_frontend(body.repo_url, name, urls.get("backend_url", ""))
             service = result.get("service", result)
             frontend_service_id = service.get("id")
             urls["frontend_url"] = service.get("serviceDetails", {}).get("url")
@@ -183,8 +186,6 @@ def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_
 
     if backend_service_id and urls.get("frontend_url"):
         _update_service_env_var(backend_service_id, "FRONTEND_URL", urls["frontend_url"])
-    if frontend_service_id and urls.get("backend_url"):
-        _update_service_env_var(frontend_service_id, "VITE_API_BASE", urls["backend_url"])
 
     update_fields = {"status": "deployed"}
     if urls.get("backend_url"):
