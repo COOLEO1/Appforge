@@ -144,6 +144,11 @@ def _update_service_env_var(service_id: str, key: str, value: str):
     payload = [{"key": k, "value": v} for k, v in merged.items()]
     httpx.put(f"{RENDER_API}/services/{service_id}/env-vars", json=payload, headers=headers, timeout=20)
 
+    # Setting an env var does not restart the running process or trigger a
+    # rebuild on its own — explicitly redeploy so the new value actually
+    # takes effect, same reasoning as the rootDir fix.
+    httpx.post(f"{RENDER_API}/services/{service_id}/deploys", json={"clearCache": "do_not_clear"}, headers=headers, timeout=20)
+
 
 @router.post("")
 def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_user)):
