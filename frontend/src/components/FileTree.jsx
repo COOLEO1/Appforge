@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function FileTree({ files, onPushGithub, onDownloadZip, onFilesChange, onDeploy, deploying }) {
+export default function FileTree({ files, onPushGithub, onDownloadZip, onFilesChange, onDeploy, deploying, deployResult }) {
   const [activePath, setActivePath] = useState(files[0]?.path || null);
   const [draft, setDraft] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -56,6 +56,42 @@ export default function FileTree({ files, onPushGithub, onDownloadZip, onFilesCh
         </div>
       </div>
 
+      <AnimatePresence>
+        {(deploying || deployResult) && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="border-b border-line px-4 py-3 text-xs space-y-1.5 overflow-hidden"
+          >
+            {deploying && (
+              <p className="text-smoke">Deploying — this can take a few minutes…</p>
+            )}
+            {deployResult?.backend_url && (
+              <p className="text-ink">
+                Backend:{" "}
+                <a href={deployResult.backend_url} target="_blank" rel="noopener noreferrer" className="text-blood underline break-all">
+                  {deployResult.backend_url}
+                </a>
+              </p>
+            )}
+            {deployResult?.frontend_url && (
+              <p className="text-ink">
+                Frontend:{" "}
+                <a href={deployResult.frontend_url} target="_blank" rel="noopener noreferrer" className="text-blood underline break-all">
+                  {deployResult.frontend_url}
+                </a>
+              </p>
+            )}
+            {deployResult?.errors && Object.entries(deployResult.errors).map(([key, msg]) => (
+              <p key={key} className="text-red-400">
+                {key}: {msg}
+              </p>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="overflow-y-auto max-h-40 border-b border-line">
         {files.map((f) => (
           <button
@@ -105,4 +141,4 @@ export default function FileTree({ files, onPushGithub, onDownloadZip, onFilesCh
       </AnimatePresence>
     </motion.aside>
   );
-    }
+}
