@@ -18,6 +18,7 @@ export default function App() {
   const [credits, setCredits] = useState(null);
   const [repoUrl, setRepoUrl] = useState(null);
   const [deploying, setDeploying] = useState(false);
+  const [deployResult, setDeployResult] = useState(null);
 
   const refreshCredits = useCallback(() => {
     api.getCredits().then((r) => setCredits(r.remaining)).catch(console.error);
@@ -46,6 +47,7 @@ export default function App() {
       setMessages(prompt ? [{ role: "user", content: prompt }] : []);
       setFiles([]);
       setRepoUrl(null);
+      setDeployResult(null);
       setShowNewProject(false);
     } catch (err) {
       window.alert(`Couldn't create project: ${err.message}`);
@@ -57,6 +59,7 @@ export default function App() {
     setMessages([]);
     setFiles([]);
     setRepoUrl(null);
+    setDeployResult(null);
     try {
       const data = await api.getProjectMessages(id);
       setMessages(
@@ -103,6 +106,7 @@ export default function App() {
         setMessages([]);
         setFiles([]);
         setRepoUrl(null);
+        setDeployResult(null);
       }
     } catch (err) {
       window.alert(`Couldn't delete project: ${err.message}`);
@@ -149,6 +153,7 @@ export default function App() {
       return;
     }
     setDeploying(true);
+    setDeployResult(null);
     try {
       const res = await api.deployProject(activeProject.id, repoUrl, backend_type, frontend_type);
       setProjects((prev) =>
@@ -158,11 +163,9 @@ export default function App() {
             : p
         )
       );
-      window.alert(
-        `Deploying! This can take a few minutes.\n\n${res.backend_url ? `Backend: ${res.backend_url}\n` : ""}${res.frontend_url ? `Frontend: ${res.frontend_url}` : ""}`
-      );
+      setDeployResult(res);
     } catch (err) {
-      window.alert(`Deploy failed: ${err.message}`);
+      setDeployResult({ errors: { general: err.message } });
     } finally {
       setDeploying(false);
     }
@@ -240,6 +243,7 @@ export default function App() {
                   onFilesChange={setFiles}
                   onDeploy={handleDeploy}
                   deploying={deploying}
+                  deployResult={deployResult}
                 />
               )}
             </AnimatePresence>
