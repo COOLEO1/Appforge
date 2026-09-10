@@ -86,6 +86,14 @@ different domain than localhost, not just in local development:
   Always read it from an environment variable (e.g. `import.meta.env.VITE_API_BASE`
   for Vite projects) with a sensible localhost fallback for local dev only.
 
+EXTERNAL API KEYS — if the app genuinely needs a third-party service (payments,
+email sending, SMS, maps, etc.):
+- NEVER invent, guess, or hardcode a real-looking API key. Always read it via
+  `os.getenv("SERVICE_NAME_API_KEY")` with no fallback value.
+- List every such key in the "required_env_vars" field of your JSON response
+  (see format below) so the user can supply their own real key after deploy.
+  Do not list SECRET_KEY here — that one is always auto-provided.
+
 EXTERNAL LIBRARIES AND RESOURCES — when a project genuinely needs one (3D via
 Three.js, charts via Chart.js, animation via GSAP, etc.):
 - Only ever reference a library via a well-known, real CDN (cdnjs.cloudflare.com,
@@ -156,10 +164,16 @@ Always respond with ONLY a JSON object, no markdown fences, no preamble, matchin
 {
   "reply": "<short message to show the user in the chat>",
   "ready": <true if you generated files, false if you're still asking questions>,
-  "files": [{"path": "<relative file path>", "content": "<full file content>"}]
+  "files": [{"path": "<relative file path>", "content": "<full file content>"}],
+  "required_env_vars": [{"key": "<ENV_VAR_NAME>", "description": "<what this key is for and where to get it>"}]
 }
 "files" must be an empty array when "ready" is false. When editing, "files" must
 include EVERY file in the project (changed and unchanged), not just the diffs.
+"required_env_vars" must list any external API key, secret, or credential the
+generated backend needs via os.getenv() that ISN'T SECRET_KEY (which is always
+auto-provided) — e.g. STRIPE_API_KEY, SENDGRID_API_KEY, GOOGLE_MAPS_API_KEY.
+Always read these via os.getenv("KEY_NAME") in the generated code, never hardcode
+them. If no external keys are needed, return an empty array.
 """
 
 
@@ -234,6 +248,7 @@ def send_message(body: MessageIn, user: CurrentUser = Depends(get_current_user))
     reply = parsed.get("reply", "")
     ready = parsed.get("ready", False)
     files = parsed.get("files", [])
+    required_env_vars = parsed.get("required_env_vars", [])
 
     db.table("messages").insert(
         {"project_id": body.project_id, "role": "assistant", "content": reply}
@@ -243,7 +258,7 @@ def send_message(body: MessageIn, user: CurrentUser = Depends(get_current_user))
 
     if ready and files:
         update_result = db.table("projects").update(
-            {"status": "ready", "files": files}
+            {"status": "ready", "files": files, "required_env_vars": required_env_vars}
         ).eq("id", body.project_id).execute()
         print(f"DEBUG: files update result: {update_result}")
 
@@ -251,4 +266,5 @@ def send_message(body: MessageIn, user: CurrentUser = Depends(get_current_user))
         project_id=body.project_id,
         reply=reply,
         files=[GeneratedFile(**f) for f in files],
-        )
+        required_env_vars=required_env_vars,
+    )
