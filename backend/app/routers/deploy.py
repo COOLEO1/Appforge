@@ -16,6 +16,7 @@ class DeployRequest(BaseModel):
     repo_url: str
     backend_type: str = "none"   # "python" | "none"
     frontend_type: str = "none"  # "react" | "static" | "none"
+    custom_env_vars: dict[str, str] = {}  # user-supplied API keys, e.g. {"STRIPE_API_KEY": "sk_..."}
 
 
 def _render_headers():
@@ -57,7 +58,11 @@ def _set_root_dir_and_redeploy(service_id: str, root_dir: str):
         )
 
 
-def _create_python_backend(repo_url: str, name: str) -> dict:
+def _create_python_backend(repo_url: str, name: str, custom_env_vars: dict[str, str] = None) -> dict:
+    env_vars = [{"key": "PYTHON_VERSION", "value": "3.12.6"}]
+    for key, value in (custom_env_vars or {}).items():
+        env_vars.append({"key": key, "value": value})
+
     payload = {
         "type": "web_service",
         "name": f"{name}-backend",
@@ -65,9 +70,7 @@ def _create_python_backend(repo_url: str, name: str) -> dict:
         "repo": repo_url,
         "branch": "main",
         "autoDeploy": "yes",
-        "envVars": [
-            {"key": "PYTHON_VERSION", "value": "3.12.6"},
-        ],
+        "envVars": env_vars,
         "serviceDetails": {
             "env": "python",
             "region": "oregon",
@@ -165,7 +168,7 @@ def deploy_project(body: DeployRequest, user: CurrentUser = Depends(get_current_
 
     if body.backend_type == "python":
         try:
-            result = _create_python_backend(body.repo_url, name)
+            result = _create_python_backend(body.repo_url, name, body.custom_env_vars)
             service = result.get("service", result)
             backend_service_id = service.get("id")
             urls["backend_url"] = service.get("serviceDetails", {}).get("url")
