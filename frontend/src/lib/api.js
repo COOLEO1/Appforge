@@ -43,10 +43,10 @@ export const api = {
       body: JSON.stringify(files),
     }),
   getCredits: () => request("/credits"),
-  deployProject: (project_id, repo_url, backend_type, frontend_type) =>
+  deployProject: (project_id, repo_url, backend_type, frontend_type, custom_env_vars = {}) =>
     request("/deploy", {
       method: "POST",
-      body: JSON.stringify({ project_id, repo_url, backend_type, frontend_type }),
+      body: JSON.stringify({ project_id, repo_url, backend_type, frontend_type, custom_env_vars }),
     }),
   deleteGithubRepo: (repo_url) =>
     request(`/github/repo?repo_url=${encodeURIComponent(repo_url)}`, { method: "DELETE" }),
