@@ -8,6 +8,11 @@ class ProjectCreate(BaseModel):
     prompt: str
 
 
+class RequiredEnvVar(BaseModel):
+    key: str
+    description: str
+
+
 class ProjectOut(BaseModel):
     id: str
     user_id: str
@@ -17,6 +22,7 @@ class ProjectOut(BaseModel):
     github_repo_url: Optional[str] = None
     deployed_frontend_url: Optional[str] = None
     deployed_backend_url: Optional[str] = None
+    required_env_vars: Optional[list[RequiredEnvVar]] = []
     created_at: datetime
 
 
@@ -49,3 +55,4 @@ class GenerationResult(BaseModel):
     project_id: str
     reply: str
     files: list[GeneratedFile] = []
+    required_env_vars: list[RequiredEnvVar] = []
