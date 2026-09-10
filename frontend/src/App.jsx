@@ -7,6 +7,7 @@ import Sidebar from "./components/Sidebar";
 import ChatPanel from "./components/ChatPanel";
 import FileTree from "./components/FileTree";
 import NewProjectModal from "./components/NewProjectModal";
+import EnvVarsModal from "./components/EnvVarsModal";
 
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = loading
@@ -19,6 +20,7 @@ export default function App() {
   const [repoUrl, setRepoUrl] = useState(null);
   const [deploying, setDeploying] = useState(false);
   const [deployResult, setDeployResult] = useState(null);
+  const [showEnvVarsModal, setShowEnvVarsModal] = useState(false);
 
   const refreshCredits = useCallback(() => {
     api.getCredits().then((r) => setCredits(r.remaining)).catch(console.error);
@@ -26,7 +28,9 @@ export default function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) =>
+      setSession(s)
+    );
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -60,10 +64,14 @@ export default function App() {
     setFiles([]);
     setRepoUrl(null);
     setDeployResult(null);
+
     try {
       const data = await api.getProjectMessages(id);
       setMessages(
-        (data.messages || []).map((m) => ({ role: m.role, content: m.content }))
+        (data.messages || []).map((m) => ({
+          role: m.role,
+          content: m.content,
+        }))
       );
       setFiles(data.files || []);
     } catch (err) {
@@ -71,56 +79,74 @@ export default function App() {
     }
   }, []);
 
-  const handleDeleteProject = useCallback(async (id, fullCleanup) => {
-    const project = projects.find((p) => p.id === id);
+  const handleDeleteProject = useCallback(
+    async (id, fullCleanup) => {
+      const project = projects.find((p) => p.id === id);
 
-    if (fullCleanup && project) {
-      if (project.github_repo_url) {
-        try {
-          await api.deleteGithubRepo(project.github_repo_url);
-        } catch (err) {
-          console.error("GitHub delete failed:", err);
+      if (fullCleanup && project) {
+        if (project.github_repo_url) {
+          try {
+            await api.deleteGithubRepo(project.github_repo_url);
+          } catch (err) {
+            console.error("GitHub delete failed:", err);
+          }
         }
-      }
-      if (project.deployed_backend_url) {
-        try {
-          await api.deleteRenderService(project.deployed_backend_url);
-        } catch (err) {
-          console.error("Render backend delete failed:", err);
-        }
-      }
-      if (project.deployed_frontend_url) {
-        try {
-          await api.deleteRenderService(project.deployed_frontend_url);
-        } catch (err) {
-          console.error("Render frontend delete failed:", err);
-        }
-      }
-    }
 
-    try {
-      await api.deleteProject(id);
-      setProjects((prev) => prev.filter((p) => p.id !== id));
-      if (activeId === id) {
-        setActiveId(null);
-        setMessages([]);
-        setFiles([]);
-        setRepoUrl(null);
-        setDeployResult(null);
+        if (project.deployed_backend_url) {
+          try {
+            await api.deleteRenderService(project.deployed_backend_url);
+          } catch (err) {
+            console.error("Render backend delete failed:", err);
+          }
+        }
+
+        if (project.deployed_frontend_url) {
+          try {
+            await api.deleteRenderService(project.deployed_frontend_url);
+          } catch (err) {
+            console.error("Render frontend delete failed:", err);
+          }
+        }
       }
-    } catch (err) {
-      window.alert(`Couldn't delete project: ${err.message}`);
-    }
-  }, [activeId, projects]);
+
+      try {
+        await api.deleteProject(id);
+        setProjects((prev) => prev.filter((p) => p.id !== id));
+
+        if (activeId === id) {
+          setActiveId(null);
+          setMessages([]);
+          setFiles([]);
+          setRepoUrl(null);
+          setDeployResult(null);
+        }
+      } catch (err) {
+        window.alert(`Couldn't delete project: ${err.message}`);
+      }
+    },
+    [activeId, projects]
+  );
 
   async function handlePushGithub() {
     const repoName = activeProject?.name.replace(/\s+/g, "-").toLowerCase();
+
     try {
-      const res = await api.pushToGithub(activeProject.id, repoName, files);
-      setRepoUrl(res.repo_url);
-      setProjects((prev) =>
-        prev.map((p) => (p.id === activeProject.id ? { ...p, github_repo_url: res.repo_url } : p))
+      const res = await api.pushToGithub(
+        activeProject.id,
+        repoName,
+        files
       );
+
+      setRepoUrl(res.repo_url);
+
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === activeProject.id
+            ? { ...p, github_repo_url: res.repo_url }
+            : p
+        )
+      );
+
       window.alert(`Pushed: ${res.repo_url}`);
     } catch (err) {
       window.alert(`Push failed: ${err.message}`);
@@ -128,9 +154,23 @@ export default function App() {
   }
 
   function detectStack(files) {
-    const hasBackendFiles = files.some((f) => f.path.startsWith("backend/") || f.path === "requirements.txt");
-    const hasReactFrontend = files.some((f) => f.path.includes("package.json") && (f.path.startsWith("frontend/") || !hasBackendFiles));
-    const hasVanillaFrontend = files.some((f) => f.path === "index.html" || f.path === "frontend/index.html");
+    const hasBackendFiles = files.some(
+      (f) =>
+        f.path.startsWith("backend/") ||
+        f.path === "requirements.txt"
+    );
+
+    const hasReactFrontend = files.some(
+      (f) =>
+        f.path.includes("package.json") &&
+        (f.path.startsWith("frontend/") || !hasBackendFiles)
+    );
+
+    const hasVanillaFrontend = files.some(
+      (f) =>
+        f.path === "index.html" ||
+        f.path === "frontend/index.html"
+    );
 
     let backend_type = "none";
     if (hasBackendFiles) backend_type = "python";
@@ -142,50 +182,97 @@ export default function App() {
     return { backend_type, frontend_type };
   }
 
-  async function handleDeploy() {
+  async function runDeploy(customEnvVars = {}) {
+    const { backend_type, frontend_type } = detectStack(files);
+
+    setDeploying(true);
+    setDeployResult(null);
+
+    try {
+      const res = await api.deployProject(
+        activeProject.id,
+        repoUrl,
+        backend_type,
+        frontend_type,
+        customEnvVars
+      );
+
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === activeProject.id
+            ? {
+                ...p,
+                deployed_backend_url: res.backend_url,
+                deployed_frontend_url: res.frontend_url,
+              }
+            : p
+        )
+      );
+
+      setDeployResult(res);
+    } catch (err) {
+      setDeployResult({
+        errors: { general: err.message },
+      });
+    } finally {
+      setDeploying(false);
+    }
+  }
+
+  function handleDeploy() {
     if (!repoUrl) {
       window.alert("Push to GitHub first, then deploy.");
       return;
     }
+
     const { backend_type, frontend_type } = detectStack(files);
+
     if (backend_type === "none" && frontend_type === "none") {
       window.alert("Couldn't detect a deployable stack in these files.");
       return;
     }
-    setDeploying(true);
-    setDeployResult(null);
-    try {
-      const res = await api.deployProject(activeProject.id, repoUrl, backend_type, frontend_type);
-      setProjects((prev) =>
-        prev.map((p) =>
-          p.id === activeProject.id
-            ? { ...p, deployed_backend_url: res.backend_url, deployed_frontend_url: res.frontend_url }
-            : p
-        )
-      );
-      setDeployResult(res);
-    } catch (err) {
-      setDeployResult({ errors: { general: err.message } });
-    } finally {
-      setDeploying(false);
+
+    if (activeProject?.required_env_vars?.length > 0) {
+      setShowEnvVarsModal(true);
+      return;
     }
+
+    runDeploy();
+  }
+
+  function handleEnvVarsSubmit(values) {
+    setShowEnvVarsModal(false);
+    runDeploy(values);
   }
 
   function handleDownloadZip() {
     (async () => {
       const { data } = await supabase.auth.getSession();
       const token = data?.session?.access_token;
-      const res = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/export/zip`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ project_name: activeProject.name, files }),
-      });
+
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/export/zip`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            project_name: activeProject.name,
+            files,
+          }),
+        }
+      );
+
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
+
       const a = document.createElement("a");
       a.href = url;
       a.download = `${activeProject.name}.zip`;
       a.click();
+
       URL.revokeObjectURL(url);
     })();
   }
@@ -197,9 +284,14 @@ export default function App() {
   return (
     <>
       <div className="grain animate-grain" />
+
       <AnimatePresence mode="wait">
         {!session ? (
-          <motion.div key="auth" exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+          <motion.div
+            key="auth"
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <AuthScreen />
           </motion.div>
         ) : (
@@ -252,6 +344,13 @@ export default function App() {
               open={showNewProject}
               onClose={() => setShowNewProject(false)}
               onCreate={handleNewProject}
+            />
+
+            <EnvVarsModal
+              open={showEnvVarsModal}
+              requiredVars={activeProject?.required_env_vars || []}
+              onClose={() => setShowEnvVarsModal(false)}
+              onSubmit={handleEnvVarsSubmit}
             />
           </motion.div>
         )}
